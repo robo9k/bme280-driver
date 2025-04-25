@@ -1,0 +1,36 @@
+[package]
+name = "bme280"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.86"
+description = "platform-agnostic embedded-hal-async I²C driver for the Bosch BME280 humidity sensor"
+repository = "https://github.com/robo9k/bme280-driver"
+license = "MIT OR Apache-2.0"
+keywords = [
+    "embedded-hal-driver",
+]
+categories = [
+	"embedded",
+	"hardware-support",
+	"no-std::no-alloc",
+]
+include = [
+	"/src/",
+]
+publish = false
+
+[package.metadata]
+msrv = "1.86.0"
+
+[package.metadata.docs.rs]
+all-features = true
+targets = []
+
+[badges]
+maintenance = { status = "experimental" }
+
+[features]
+default = []
+std = []
+
+[dependencies]

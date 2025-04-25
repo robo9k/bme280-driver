@@ -4,17 +4,25 @@
 #![cfg_attr(docsrs, feature(doc_cfg_hide))]
 #![cfg_attr(docsrs, doc(cfg_hide(docsrs)))]
 
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+use embedded_hal_async::i2c::{I2c, SevenBitAddress};
+
+pub struct Bme280<I2c> {
+    i2c: I2c,
+    address: SevenBitAddress,
+}
+
+impl<I2C> Bme280<I2C>
+where
+    I2C: I2c,
+{
+    // TODO: should this be fallible and check the chip_id?
+    // calibration should be done in e.g. .init() and involve typestate
+    pub fn new_with_address(i2c: I2C, address: SevenBitAddress) -> Self {
+        Self { i2c, address }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
 }

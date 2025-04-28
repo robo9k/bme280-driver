@@ -420,6 +420,12 @@ where
         }
     }
 
+    pub async fn reset(&mut self) -> Result<(), E> {
+        self.write_reset().await?;
+
+        Ok(())
+    }
+
     pub async fn control(&mut self) -> Result<Control, E> {
         let ctrl_hum = self.read_ctrl_hum().await?;
         let ctrl_meas = self.read_ctrl_meas().await?;

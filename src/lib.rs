@@ -447,6 +447,9 @@ where
     pub async fn set_config(&mut self, config: Config) -> Result<(), E> {
         let config = config.into();
 
+        // > Writes to the “config” register in normal mode may be ignored.
+        // TODO: Set device into sleep mode if needed, then write config, then set into normal mode again if needed
+
         self.write_config(config).await?;
 
         Ok(())

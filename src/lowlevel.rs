@@ -5,6 +5,7 @@ use crate::{Bme280, ChipId};
 
 const REGISTER_ID_ADDRESS: SevenBitAddress = 0xD0;
 const REGISTER_CTRL_HUM_ADDRESS: SevenBitAddress = 0xF2;
+const REGISTER_STATUS_ADDRESS: SevenBitAddress = 0xF3;
 const REGISTER_CTRL_MEAS_ADDRESS: SevenBitAddress = 0xF4;
 const REGISTER_CONFIG_ADDRESS: SevenBitAddress = 0xF5;
 
@@ -128,6 +129,15 @@ impl defmt::Format for Config {
     }
 }
 
+#[bitfield(u8, default = 0x00)]
+pub(crate) struct Status {
+    #[bit(3, rw)]
+    measuring: bool,
+
+    #[bit(0, rw)]
+    im_update: bool,
+}
+
 impl<I2C, E> Bme280<I2C>
 where
     I2C: I2c<Error = E>,
@@ -166,5 +176,14 @@ where
             .await?;
         let config = Config::new_with_raw_value(data[0]);
         Ok(config)
+    }
+
+    pub(crate) async fn read_status(&mut self) -> Result<Status, E> {
+        let mut data: [u8; 1] = [0];
+        self.i2c
+            .write_read(self.address, &[REGISTER_STATUS_ADDRESS], &mut data)
+            .await?;
+        let status = Status::new_with_raw_value(data[0]);
+        Ok(status)
     }
 }

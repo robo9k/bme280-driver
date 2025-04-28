@@ -222,6 +222,45 @@ impl From<lowlevel::Config> for Config {
     }
 }
 
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
+pub enum MeasurementStatus {
+    Standby,
+    Measuring,
+}
+
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
+pub enum UpdateStatus {
+    Standby,
+    Copying,
+}
+
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
+pub struct Status {
+    pub measurement: MeasurementStatus,
+    pub update: UpdateStatus,
+}
+
+impl From<lowlevel::Status> for Status {
+    fn from(status: lowlevel::Status) -> Self {
+        let measurement = if status.measuring() {
+            MeasurementStatus::Measuring
+        } else {
+            MeasurementStatus::Standby
+        };
+
+        let update = if status.im_update() {
+            UpdateStatus::Copying
+        } else {
+            UpdateStatus::Standby
+        };
+
+        Self {
+            measurement,
+            update,
+        }
+    }
+}
+
 impl<I2C, E> Bme280<I2C>
 where
     I2C: I2c<Error = E>,
@@ -254,6 +293,13 @@ where
 
         let config = config.into();
         Ok(config)
+    }
+
+    pub async fn status(&mut self) -> Result<Status, E> {
+        let status = self.read_status().await?;
+
+        let status = status.into();
+        Ok(status)
     }
 
     pub fn release(self) -> I2C {

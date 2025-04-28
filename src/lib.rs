@@ -466,7 +466,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{lowlevel::*, *};
     use embedded_hal_mock::eh1::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
 
     #[futures_test::test]

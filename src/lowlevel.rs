@@ -3,11 +3,11 @@ use embedded_hal_async::i2c::{I2c, SevenBitAddress};
 
 use crate::{Bme280, ChipId};
 
-const REGISTER_ID_ADDRESS: SevenBitAddress = 0xD0;
-const REGISTER_CTRL_HUM_ADDRESS: SevenBitAddress = 0xF2;
-const REGISTER_STATUS_ADDRESS: SevenBitAddress = 0xF3;
-const REGISTER_CTRL_MEAS_ADDRESS: SevenBitAddress = 0xF4;
-const REGISTER_CONFIG_ADDRESS: SevenBitAddress = 0xF5;
+pub(crate) const REGISTER_ID_ADDRESS: SevenBitAddress = 0xD0;
+pub(crate) const REGISTER_CTRL_HUM_ADDRESS: SevenBitAddress = 0xF2;
+pub(crate) const REGISTER_STATUS_ADDRESS: SevenBitAddress = 0xF3;
+pub(crate) const REGISTER_CTRL_MEAS_ADDRESS: SevenBitAddress = 0xF4;
+pub(crate) const REGISTER_CONFIG_ADDRESS: SevenBitAddress = 0xF5;
 
 #[bitenum(u3, exhaustive = false)]
 pub(crate) enum HumidityOversampling {

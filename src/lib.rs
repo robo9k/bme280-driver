@@ -12,15 +12,35 @@ mod lowlevel;
 pub type ChipId = u8;
 pub const CHIP_ID: ChipId = 0x60;
 
+mod private {
+    pub trait Sealed {}
+
+    impl Sealed for super::Initialized {}
+    impl Sealed for super::Calibrated {}
+}
+
+pub trait State: private::Sealed {}
+
 #[derive(Debug)]
-pub struct Bme280<I2c> {
-    i2c: I2c,
+pub struct Initialized;
+
+impl State for Initialized {}
+
+#[derive(Debug)]
+pub struct Calibrated {}
+
+impl State for Calibrated {}
+
+#[derive(Debug)]
+pub struct Bme280<I2C, S: State> {
+    i2c: I2C,
     address: SevenBitAddress,
+    state: S,
 }
 
 #[cfg(feature = "defmt-03")]
 #[cfg_attr(docsrs, doc(cfg(feature = "defmt-03")))]
-impl<I2C> defmt::Format for Bme280<I2C> {
+impl<I2C, S: State> defmt::Format for Bme280<I2C, S> {
     fn format(&self, f: defmt::Formatter) {
         defmt::write!(f, "BME280 {{ address {=u8:#X} }}", self.address,)
     }
@@ -401,7 +421,8 @@ impl From<lowlevel::Status> for Status {
     }
 }
 
-impl<I2C, E> Bme280<I2C>
+/// Operations that are valid in the `Initialized` state
+impl<I2C, E> Bme280<I2C, Initialized>
 where
     I2C: I2c<Error = E>,
     E: embedded_hal_async::i2c::Error,
@@ -409,17 +430,30 @@ where
     pub async fn new_with_address(
         i2c: I2C,
         address: SevenBitAddress,
-    ) -> Result<Self, ChipIdError<E>> {
-        let mut this = Self { i2c, address };
+    ) -> Result<Bme280<I2C, Initialized>, ChipIdError<E>> {
+        let mut this = Bme280 {
+            i2c,
+            address,
+            state: Initialized,
+        };
 
         let chip_id = this.read_chip_id().await?;
         if CHIP_ID == chip_id {
+            this.reset().await?;
             Ok(this)
         } else {
             Err(ChipIdError::WrongChipId(chip_id))
         }
     }
+}
 
+/// Operations that are valid in any state
+impl<I2C, E, S> Bme280<I2C, S>
+where
+    I2C: I2c<Error = E>,
+    E: embedded_hal_async::i2c::Error,
+    S: State,
+{
     pub async fn reset(&mut self) -> Result<(), E> {
         self.write_reset().await?;
 
@@ -486,11 +520,13 @@ mod tests {
     async fn test_new_with_address_ok() -> Result<(), Box<dyn std::error::Error>> {
         const I2C_ADDRESS: SevenBitAddress = 0x42;
 
-        let expectations = [I2cTransaction::write_read(
-            I2C_ADDRESS,
-            vec![REGISTER_ID_ADDRESS],
-            vec![CHIP_ID],
-        )];
+        let expectations = [
+            I2cTransaction::write_read(I2C_ADDRESS, vec![REGISTER_ID_ADDRESS], vec![CHIP_ID]),
+            I2cTransaction::write(
+                I2C_ADDRESS,
+                vec![REGISTER_RESET_ADDRESS, REGISTER_RESET_MAGIC],
+            ),
+        ];
         let i2c = I2cMock::new(&expectations);
 
         let bme280 = Bme280::new_with_address(i2c, I2C_ADDRESS).await?;

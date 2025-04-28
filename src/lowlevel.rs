@@ -1,7 +1,7 @@
 use bitbybit::{bitenum, bitfield};
 use embedded_hal_async::i2c::{I2c, SevenBitAddress};
 
-use crate::{Bme280, ChipId};
+use crate::{Bme280, ChipId, State};
 
 pub(crate) const REGISTER_ID_ADDRESS: SevenBitAddress = 0xD0;
 pub(crate) const REGISTER_RESET_ADDRESS: SevenBitAddress = 0xE0;
@@ -141,10 +141,11 @@ pub(crate) struct Status {
     im_update: bool,
 }
 
-impl<I2C, E> Bme280<I2C>
+impl<I2C, E, S> Bme280<I2C, S>
 where
     I2C: I2c<Error = E>,
     E: embedded_hal_async::i2c::Error,
+    S: State,
 {
     pub(crate) async fn read_chip_id(&mut self) -> Result<ChipId, E> {
         let mut data: [u8; 1] = [0];

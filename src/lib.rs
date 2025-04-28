@@ -22,12 +22,100 @@ mod private {
 pub trait State: private::Sealed {}
 
 #[derive(Debug)]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub struct Initialized;
 
 impl State for Initialized {}
 
 #[derive(Debug)]
-pub struct Calibrated {}
+struct Calibration {
+    temperature1: u16,
+    temperature2: i16,
+    temperature3: i16,
+
+    pressure1: u16,
+    pressure2: i16,
+    pressure3: i16,
+    pressure4: i16,
+    pressure5: i16,
+    pressure6: i16,
+    pressure7: i16,
+    pressure8: i16,
+    pressure9: i16,
+
+    humidity1: u8,
+    humidity2: i16,
+    humidity3: u8,
+    humidity4: i16,
+    humidity5: i16,
+    humidity6: i8,
+}
+
+#[cfg(feature = "defmt-03")]
+#[cfg_attr(docsrs, doc(cfg(feature = "defmt-03")))]
+impl defmt::Format for Calibration {
+    fn format(&self, f: defmt::Formatter) {
+        defmt::write!(
+            f,
+            "Calibration {{ \
+            dig_T1: {=u16}, dig_T2: {=i16}, dig_T3: {=i16}, \
+        dig_P1: {=u16}, dig_P2: {=i16}, dig_P3: {=i16}, dig_P4: {=i16}, dig_P5: {=i16}, dig_P6: {=i16}, dig_P7: {=i16}, dig_P8: {=i16}, dig_P9: {=i16}, \
+        dig_H1: {=u8}, dig_H2: {=i16}, dig_H3: {=u8}, dig_H4: {=i16}, dig_H5: {=i16}, dig_H6: {=i8} \
+        }}",
+            self.temperature1,
+            self.temperature2,
+            self.temperature3,
+            self.pressure1,
+            self.pressure2,
+            self.pressure3,
+            self.pressure4,
+            self.pressure5,
+            self.pressure6,
+            self.pressure7,
+            self.pressure8,
+            self.pressure9,
+            self.humidity1,
+            self.humidity2,
+            self.humidity3,
+            self.humidity4,
+            self.humidity5,
+            self.humidity6,
+        )
+    }
+}
+
+impl From<[u8; lowlevel::REGISTER_CALIB_LENGTH]> for Calibration {
+    fn from(data: [u8; lowlevel::REGISTER_CALIB_LENGTH]) -> Self {
+        Self {
+            temperature1: u16::from_le_bytes([data[0], data[1]]),
+            temperature2: i16::from_le_bytes([data[2], data[3]]),
+            temperature3: i16::from_le_bytes([data[4], data[5]]),
+
+            pressure1: u16::from_le_bytes([data[6], data[7]]),
+            pressure2: i16::from_le_bytes([data[8], data[9]]),
+            pressure3: i16::from_le_bytes([data[10], data[11]]),
+            pressure4: i16::from_le_bytes([data[12], data[13]]),
+            pressure5: i16::from_le_bytes([data[14], data[15]]),
+            pressure6: i16::from_le_bytes([data[16], data[17]]),
+            pressure7: i16::from_le_bytes([data[18], data[19]]),
+            pressure8: i16::from_le_bytes([data[20], data[21]]),
+            pressure9: i16::from_le_bytes([data[22], data[23]]),
+
+            humidity1: data[25],
+            humidity2: i16::from_le_bytes([data[26], data[27]]),
+            humidity3: data[28],
+            humidity4: i16::from(data[29]) << 4 | i16::from(data[30]) & 0xf,
+            humidity5: ((i16::from(data[30]) & 0xf0) >> 4) | (i16::from(data[31]) << 4),
+            humidity6: data[32] as i8,
+        }
+    }
+}
+
+#[derive(Debug)]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
+pub struct Calibrated {
+    calibration: Calibration,
+}
 
 impl State for Calibrated {}
 
@@ -40,9 +128,22 @@ pub struct Bme280<I2C, S: State> {
 
 #[cfg(feature = "defmt-03")]
 #[cfg_attr(docsrs, doc(cfg(feature = "defmt-03")))]
-impl<I2C, S: State> defmt::Format for Bme280<I2C, S> {
+impl<I2C> defmt::Format for Bme280<I2C, Initialized> {
     fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "BME280 {{ address {=u8:#X} }}", self.address,)
+        defmt::write!(f, "Bme280 {{ address: {=u8:#X} }}", self.address,)
+    }
+}
+
+#[cfg(feature = "defmt-03")]
+#[cfg_attr(docsrs, doc(cfg(feature = "defmt-03")))]
+impl<I2C> defmt::Format for Bme280<I2C, Calibrated> {
+    fn format(&self, f: defmt::Formatter) {
+        defmt::write!(
+            f,
+            "Bme280 {{ address: {=u8:#X}, calibration: {} }}",
+            self.address,
+            self.state.calibration
+        )
     }
 }
 
@@ -421,7 +522,7 @@ impl From<lowlevel::Status> for Status {
     }
 }
 
-/// Operations that are valid in the `Initialized` state
+/// Operations that are valid in the `Initialized` state only
 impl<I2C, E> Bme280<I2C, Initialized>
 where
     I2C: I2c<Error = E>,
@@ -445,6 +546,27 @@ where
             Err(ChipIdError::WrongChipId(chip_id))
         }
     }
+
+    pub async fn calibrate(mut self) -> Result<Bme280<I2C, Calibrated>, E> {
+        let calibration = self.read_calib().await?;
+
+        let this = Bme280 {
+            i2c: self.i2c,
+            address: self.address,
+            state: Calibrated {
+                calibration: calibration.into(),
+            },
+        };
+        Ok(this)
+    }
+}
+
+/// Operations that are valid in the `Calibrated` state only
+impl<I2C, E> Bme280<I2C, Calibrated>
+where
+    I2C: I2c<Error = E>,
+    E: embedded_hal_async::i2c::Error,
+{
 }
 
 /// Operations that are valid in any state

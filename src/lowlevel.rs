@@ -9,6 +9,13 @@ pub(crate) const REGISTER_CTRL_HUM_ADDRESS: SevenBitAddress = 0xF2;
 pub(crate) const REGISTER_STATUS_ADDRESS: SevenBitAddress = 0xF3;
 pub(crate) const REGISTER_CTRL_MEAS_ADDRESS: SevenBitAddress = 0xF4;
 pub(crate) const REGISTER_CONFIG_ADDRESS: SevenBitAddress = 0xF5;
+pub(crate) const REGISTER_CALIB26_CALIB41_ADDRESS: SevenBitAddress = 0xE1;
+pub(crate) const REGISTER_CALIB00_CALIB25_ADDRESS: SevenBitAddress = 0x88;
+
+pub(crate) const REGISTER_CALIB26_CALIB41_LENGTH: usize = 7;
+pub(crate) const REGISTER_CALIB00_CALIB25_LENGTH: usize = 26;
+pub(crate) const REGISTER_CALIB_LENGTH: usize =
+    REGISTER_CALIB00_CALIB25_LENGTH + REGISTER_CALIB26_CALIB41_LENGTH;
 
 pub(crate) const REGISTER_RESET_MAGIC: SevenBitAddress = 0xB6;
 
@@ -226,5 +233,26 @@ where
             .await?;
         let status = Status::new_with_raw_value(data[0]);
         Ok(status)
+    }
+
+    pub(crate) async fn read_calib(&mut self) -> Result<[u8; REGISTER_CALIB_LENGTH], E> {
+        let mut data: [u8; REGISTER_CALIB_LENGTH] = [0; REGISTER_CALIB_LENGTH];
+
+        self.i2c
+            .write_read(
+                self.address,
+                &[REGISTER_CALIB00_CALIB25_ADDRESS],
+                &mut data[0..REGISTER_CALIB00_CALIB25_LENGTH],
+            )
+            .await?;
+        self.i2c
+            .write_read(
+                self.address,
+                &[REGISTER_CALIB26_CALIB41_ADDRESS],
+                &mut data[REGISTER_CALIB00_CALIB25_LENGTH..REGISTER_CALIB_LENGTH],
+            )
+            .await?;
+
+        Ok(data)
     }
 }

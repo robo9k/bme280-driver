@@ -462,6 +462,10 @@ where
         Ok(status)
     }
 
+    pub fn address(&self) -> SevenBitAddress {
+        self.address
+    }
+
     pub fn release(self) -> I2C {
         self.i2c
     }

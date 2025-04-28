@@ -111,6 +111,91 @@ impl From<[u8; lowlevel::REGISTER_CALIB_LENGTH]> for Calibration {
     }
 }
 
+#[derive(Copy, Clone)]
+struct FineTemperature(i32);
+
+impl Calibration {
+    fn compensate_temperature(&self, adc_t: lowlevel::AdcTemperature) -> FineTemperature {
+        let adc_t = adc_t.0 as i32;
+
+        let var1 = (((adc_t >> 3) - (i32::from(self.temperature1) << 1))
+            * i32::from(self.temperature2))
+            >> 11;
+        let var2 = (((((adc_t >> 4) - i32::from(self.temperature1))
+            * ((adc_t >> 4) - i32::from(self.temperature1)))
+            >> 12)
+            * i32::from(self.temperature3))
+            >> 14;
+
+        FineTemperature(var1 + var2)
+    }
+
+    fn fine_temperature_to_temperature(fine_temperature: FineTemperature) -> i32 {
+        (fine_temperature.0 * 5 + 128) >> 8
+    }
+
+    fn compensate_pressure(&self, adc_p: lowlevel::AdcPressure, t_fine: FineTemperature) -> u32 {
+        let adc_p = adc_p.0;
+        let t_fine = t_fine.0;
+
+        let var1 = i64::from(t_fine) - 128_000;
+        let var2 = var1 * var1 * i64::from(self.pressure6);
+        let var2 = var2 + ((var1 * i64::from(self.pressure5)) << 17);
+        let var2 = var2 + (i64::from(self.pressure4) << 35);
+        let var1 = ((var1 * var1 * i64::from(self.pressure3)) >> 8)
+            + ((var1 * i64::from(self.pressure2)) << 12);
+        let var1 = ((((1_i64) << 47) + var1) * i64::from(self.pressure1)) >> 33;
+
+        if var1 == 0 {
+            // division by zero
+            0
+        } else {
+            let var4 = 1_048_576 - i64::from(adc_p);
+            let var4 = (((var4 << 31) - var2) * 3125) / var1;
+            let var1 = (i64::from(self.pressure9) * (var4 >> 13) * (var4 >> 13)) >> 25;
+            let var2 = (i64::from(self.pressure8) * var4) >> 19;
+            let var5 = ((var4 + var1 + var2) >> 8) + (i64::from(self.pressure7) << 4);
+
+            let p = var5;
+            let pressure = p as u32;
+
+            pressure
+        }
+    }
+
+    fn compensate_humidity(&self, adc_h: lowlevel::AdcHumidity, t_fine: FineTemperature) -> u32 {
+        let adc_h = i32::from(adc_h.0);
+        let t_fine = t_fine.0;
+
+        let v_x1_u32r: i32 = t_fine - 76_800_i32;
+        let v_x1_u32r: i32 = ((((adc_h << 14)
+            - (i32::from(self.humidity4) << 20)
+            - (i32::from(self.humidity5) * v_x1_u32r))
+            + (16_384_i32))
+            >> 15)
+            * (((((((v_x1_u32r * i32::from(self.humidity6)) >> 10)
+                * (((v_x1_u32r * i32::from(self.humidity3)) >> 11) + (32_768_i32)))
+                >> 10)
+                + (2_097_152_i32))
+                * i32::from(self.humidity2)
+                + 8192_i32)
+                >> 14);
+        let v_x1_u32r: i32 = v_x1_u32r
+            - (((((v_x1_u32r >> 15) * (v_x1_u32r >> 15)) >> 7) * i32::from(self.humidity1)) >> 4);
+        let v_x1_u32r = if v_x1_u32r < 0 { 0 } else { v_x1_u32r };
+        let v_x1_u32r = if v_x1_u32r > 419_430_400 {
+            419_430_400
+        } else {
+            v_x1_u32r
+        };
+
+        let humidity = v_x1_u32r >> 12;
+        let humidity = humidity as u32;
+
+        humidity
+    }
+}
+
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub struct Calibrated {
@@ -522,6 +607,13 @@ impl From<lowlevel::Status> for Status {
     }
 }
 
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
+pub struct Measurement {
+    pub pressure: Option<u32>,
+    pub temperature: Option<i32>,
+    pub humidity: Option<u32>,
+}
+
 /// Operations that are valid in the `Initialized` state only
 impl<I2C, E> Bme280<I2C, Initialized>
 where
@@ -567,6 +659,43 @@ where
     I2C: I2c<Error = E>,
     E: embedded_hal_async::i2c::Error,
 {
+    // TODO: alternative that takes fine_temperature as a parameter so pressure and humidity can be measured with skipped temperature
+    pub async fn measure(&mut self) -> Result<Measurement, E> {
+        let lowlevel::RawMeasurement {
+            pressure: raw_pressure,
+            temperature: raw_temperature,
+            humidity: raw_humidity,
+        } = self.read_raw_measurement().await?;
+
+        let measurement = if let Some(raw_temperature) = raw_temperature {
+            let calibration = &self.state.calibration;
+
+            let fine_temperature = calibration.compensate_temperature(raw_temperature);
+            let temperature = Some(Calibration::fine_temperature_to_temperature(
+                fine_temperature,
+            ));
+            let pressure = raw_pressure.map(|raw_pressure| {
+                calibration.compensate_pressure(raw_pressure, fine_temperature)
+            });
+            let humidity = raw_humidity.map(|raw_humidity| {
+                calibration.compensate_humidity(raw_humidity, fine_temperature)
+            });
+
+            Measurement {
+                pressure,
+                temperature,
+                humidity,
+            }
+        } else {
+            Measurement {
+                pressure: None,
+                temperature: None,
+                humidity: None,
+            }
+        };
+
+        Ok(measurement)
+    }
 }
 
 /// Operations that are valid in any state

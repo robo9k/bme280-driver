@@ -11,11 +11,18 @@ pub(crate) const REGISTER_CTRL_MEAS_ADDRESS: SevenBitAddress = 0xF4;
 pub(crate) const REGISTER_CONFIG_ADDRESS: SevenBitAddress = 0xF5;
 pub(crate) const REGISTER_CALIB26_CALIB41_ADDRESS: SevenBitAddress = 0xE1;
 pub(crate) const REGISTER_CALIB00_CALIB25_ADDRESS: SevenBitAddress = 0x88;
+pub(crate) const REGISTER_RAW_MEASUREMENT_ADDRESS: SevenBitAddress = 0xF7;
 
 pub(crate) const REGISTER_CALIB26_CALIB41_LENGTH: usize = 7;
 pub(crate) const REGISTER_CALIB00_CALIB25_LENGTH: usize = 26;
 pub(crate) const REGISTER_CALIB_LENGTH: usize =
     REGISTER_CALIB00_CALIB25_LENGTH + REGISTER_CALIB26_CALIB41_LENGTH;
+
+pub(crate) const REGISTER_RAW_MEASUREMENT_LENGTH: usize = 8;
+
+pub(crate) const REGISTER_HUM_SKIPPED: u16 = 0x8000;
+pub(crate) const REGISTER_TEMP_SKIPPED: u32 = 0x80000;
+pub(crate) const REGISTER_PRESS_SKIPPED: u32 = 0x80000;
 
 pub(crate) const REGISTER_RESET_MAGIC: SevenBitAddress = 0xB6;
 
@@ -148,6 +155,43 @@ pub(crate) struct Status {
     im_update: bool,
 }
 
+pub(crate) struct AdcPressure(pub(crate) u32);
+
+#[cfg(feature = "defmt-03")]
+#[cfg_attr(docsrs, doc(cfg(feature = "defmt-03")))]
+impl defmt::Format for AdcPressure {
+    fn format(&self, f: defmt::Formatter) {
+        self.0.format(f)
+    }
+}
+
+pub(crate) struct AdcTemperature(pub(crate) u32);
+
+#[cfg(feature = "defmt-03")]
+#[cfg_attr(docsrs, doc(cfg(feature = "defmt-03")))]
+impl defmt::Format for AdcTemperature {
+    fn format(&self, f: defmt::Formatter) {
+        self.0.format(f)
+    }
+}
+
+pub(crate) struct AdcHumidity(pub(crate) u16);
+
+#[cfg(feature = "defmt-03")]
+#[cfg_attr(docsrs, doc(cfg(feature = "defmt-03")))]
+impl defmt::Format for AdcHumidity {
+    fn format(&self, f: defmt::Formatter) {
+        self.0.format(f)
+    }
+}
+
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
+pub(crate) struct RawMeasurement {
+    pub(crate) pressure: Option<AdcPressure>,
+    pub(crate) temperature: Option<AdcTemperature>,
+    pub(crate) humidity: Option<AdcHumidity>,
+}
+
 impl<I2C, E, S> Bme280<I2C, S>
 where
     I2C: I2c<Error = E>,
@@ -254,5 +298,48 @@ where
             .await?;
 
         Ok(data)
+    }
+
+    pub(crate) async fn read_raw_measurement(&mut self) -> Result<RawMeasurement, E> {
+        let mut data: [u8; REGISTER_RAW_MEASUREMENT_LENGTH] = [0; REGISTER_RAW_MEASUREMENT_LENGTH];
+
+        self.i2c
+            .write_read(self.address, &[REGISTER_RAW_MEASUREMENT_ADDRESS], &mut data)
+            .await?;
+
+        let adc_p: u32 =
+            (u32::from(data[0]) << 12) | (u32::from(data[1]) << 4) | (u32::from(data[2]) >> 4);
+        #[cfg(feature = "defmt-03")]
+        defmt::trace!("adc_p {=u32}", adc_p);
+
+        let adc_t: u32 =
+            (u32::from(data[3]) << 12) | (u32::from(data[4]) << 4) | (u32::from(data[5]) >> 4);
+        #[cfg(feature = "defmt-03")]
+        defmt::trace!("adc_t {=u32}", adc_t);
+
+        let adc_h: u16 = (u16::from(data[6]) << 8) | u16::from(data[7]);
+        #[cfg(feature = "defmt-03")]
+        defmt::trace!("adc_p {=u16}", adc_h);
+
+        let raw_measurement = RawMeasurement {
+            pressure: if adc_p == REGISTER_PRESS_SKIPPED {
+                None
+            } else {
+                Some(AdcPressure(adc_p))
+            },
+            temperature: if adc_t == REGISTER_TEMP_SKIPPED {
+                None
+            } else {
+                Some(AdcTemperature(adc_t))
+            },
+            humidity: if adc_h == REGISTER_HUM_SKIPPED {
+                None
+            } else {
+                Some(AdcHumidity(adc_h))
+            },
+        };
+        #[cfg(feature = "defmt-03")]
+        defmt::debug!("raw_measurement {}", raw_measurement);
+        Ok(raw_measurement)
     }
 }

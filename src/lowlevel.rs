@@ -160,6 +160,16 @@ where
         Ok(ctrl_hum)
     }
 
+    pub(crate) async fn write_ctrl_hum(&mut self, ctrl_hum: HumidityControl) -> Result<(), E> {
+        self.i2c
+            .write(
+                self.address,
+                &[REGISTER_CTRL_HUM_ADDRESS, ctrl_hum.raw_value()],
+            )
+            .await?;
+        Ok(())
+    }
+
     pub(crate) async fn read_ctrl_meas(&mut self) -> Result<MeasurementControl, E> {
         let mut data: [u8; 1] = [0];
         self.i2c
@@ -169,6 +179,16 @@ where
         Ok(ctrl_meas)
     }
 
+    pub(crate) async fn write_ctrl_meas(&mut self, ctrl_meas: MeasurementControl) -> Result<(), E> {
+        self.i2c
+            .write(
+                self.address,
+                &[REGISTER_CTRL_MEAS_ADDRESS, ctrl_meas.raw_value()],
+            )
+            .await?;
+        Ok(())
+    }
+
     pub(crate) async fn read_config(&mut self) -> Result<Config, E> {
         let mut data: [u8; 1] = [0];
         self.i2c
@@ -176,6 +196,13 @@ where
             .await?;
         let config = Config::new_with_raw_value(data[0]);
         Ok(config)
+    }
+
+    pub(crate) async fn write_config(&mut self, config: Config) -> Result<(), E> {
+        self.i2c
+            .write(self.address, &[REGISTER_CONFIG_ADDRESS, config.raw_value()])
+            .await?;
+        Ok(())
     }
 
     pub(crate) async fn read_status(&mut self) -> Result<Status, E> {

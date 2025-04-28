@@ -44,7 +44,7 @@ where
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Copy, Clone)]
 #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub enum HumidityOversampling {
     #[default]
@@ -56,7 +56,33 @@ pub enum HumidityOversampling {
     X16,
 }
 
-#[derive(Default)]
+impl From<lowlevel::HumidityOversampling> for HumidityOversampling {
+    fn from(humidity_oversampling: lowlevel::HumidityOversampling) -> Self {
+        match humidity_oversampling {
+            lowlevel::HumidityOversampling::Skip => Self::Skip,
+            lowlevel::HumidityOversampling::X1 => Self::X1,
+            lowlevel::HumidityOversampling::X2 => Self::X2,
+            lowlevel::HumidityOversampling::X4 => Self::X4,
+            lowlevel::HumidityOversampling::X8 => Self::X8,
+            lowlevel::HumidityOversampling::X16 => Self::X16,
+        }
+    }
+}
+
+impl From<HumidityOversampling> for lowlevel::HumidityOversampling {
+    fn from(humidity_oversampling: HumidityOversampling) -> Self {
+        match humidity_oversampling {
+            HumidityOversampling::Skip => Self::Skip,
+            HumidityOversampling::X1 => Self::X1,
+            HumidityOversampling::X2 => Self::X2,
+            HumidityOversampling::X4 => Self::X4,
+            HumidityOversampling::X8 => Self::X8,
+            HumidityOversampling::X16 => Self::X16,
+        }
+    }
+}
+
+#[derive(Default, Copy, Clone)]
 #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub enum TemperatureOversampling {
     #[default]
@@ -68,7 +94,33 @@ pub enum TemperatureOversampling {
     X16,
 }
 
-#[derive(Default)]
+impl From<lowlevel::TemperatureOversampling> for TemperatureOversampling {
+    fn from(temperature_oversampling: lowlevel::TemperatureOversampling) -> Self {
+        match temperature_oversampling {
+            lowlevel::TemperatureOversampling::Skip => Self::Skip,
+            lowlevel::TemperatureOversampling::X1 => Self::X1,
+            lowlevel::TemperatureOversampling::X2 => Self::X2,
+            lowlevel::TemperatureOversampling::X4 => Self::X4,
+            lowlevel::TemperatureOversampling::X8 => Self::X8,
+            lowlevel::TemperatureOversampling::X16 => Self::X16,
+        }
+    }
+}
+
+impl From<TemperatureOversampling> for lowlevel::TemperatureOversampling {
+    fn from(temperature_oversampling: TemperatureOversampling) -> Self {
+        match temperature_oversampling {
+            TemperatureOversampling::Skip => Self::Skip,
+            TemperatureOversampling::X1 => Self::X1,
+            TemperatureOversampling::X2 => Self::X2,
+            TemperatureOversampling::X4 => Self::X4,
+            TemperatureOversampling::X8 => Self::X8,
+            TemperatureOversampling::X16 => Self::X16,
+        }
+    }
+}
+
+#[derive(Default, Copy, Clone)]
 #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub enum PressureOversampling {
     #[default]
@@ -80,7 +132,33 @@ pub enum PressureOversampling {
     X16,
 }
 
-#[derive(Default)]
+impl From<lowlevel::PressureOversampling> for PressureOversampling {
+    fn from(pressure_oversampling: lowlevel::PressureOversampling) -> Self {
+        match pressure_oversampling {
+            lowlevel::PressureOversampling::Skip => Self::Skip,
+            lowlevel::PressureOversampling::X1 => Self::X1,
+            lowlevel::PressureOversampling::X2 => Self::X2,
+            lowlevel::PressureOversampling::X4 => Self::X4,
+            lowlevel::PressureOversampling::X8 => Self::X8,
+            lowlevel::PressureOversampling::X16 => Self::X16,
+        }
+    }
+}
+
+impl From<PressureOversampling> for lowlevel::PressureOversampling {
+    fn from(pressure_oversampling: PressureOversampling) -> Self {
+        match pressure_oversampling {
+            PressureOversampling::Skip => Self::Skip,
+            PressureOversampling::X1 => Self::X1,
+            PressureOversampling::X2 => Self::X2,
+            PressureOversampling::X4 => Self::X4,
+            PressureOversampling::X8 => Self::X8,
+            PressureOversampling::X16 => Self::X16,
+        }
+    }
+}
+
+#[derive(Default, Copy, Clone)]
 #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub enum Mode {
     #[default]
@@ -89,7 +167,27 @@ pub enum Mode {
     Normal,
 }
 
-#[derive(Default)]
+impl From<lowlevel::Mode> for Mode {
+    fn from(mode: lowlevel::Mode) -> Self {
+        match mode {
+            lowlevel::Mode::Sleep => Self::Sleep,
+            lowlevel::Mode::Forced => Self::Forced,
+            lowlevel::Mode::Normal => Self::Normal,
+        }
+    }
+}
+
+impl From<Mode> for lowlevel::Mode {
+    fn from(mode: Mode) -> Self {
+        match mode {
+            Mode::Sleep => Self::Sleep,
+            Mode::Forced => Self::Forced,
+            Mode::Normal => Self::Normal,
+        }
+    }
+}
+
+#[derive(Default, Copy, Clone)]
 #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub struct Control {
     pub humidity_oversampling: HumidityOversampling,
@@ -108,47 +206,22 @@ impl From<(lowlevel::HumidityControl, lowlevel::MeasurementControl)> for Control
         let humidity_oversampling = humidity_control
             .humidity_oversampling()
             // other bit patterns map to ×16
-            .map_or(HumidityOversampling::X16, |ho| match ho {
-                lowlevel::HumidityOversampling::Skip => HumidityOversampling::Skip,
-                lowlevel::HumidityOversampling::X1 => HumidityOversampling::X1,
-                lowlevel::HumidityOversampling::X2 => HumidityOversampling::X2,
-                lowlevel::HumidityOversampling::X4 => HumidityOversampling::X4,
-                lowlevel::HumidityOversampling::X8 => HumidityOversampling::X8,
-                lowlevel::HumidityOversampling::X16 => HumidityOversampling::X16,
-            });
+            .map_or(HumidityOversampling::X16, |ho| ho.into());
 
         let temperature_oversampling = measurement_control
             .temperature_oversampling()
             // other bit patterns map to ×16
-            .map_or(TemperatureOversampling::X16, |to| match to {
-                lowlevel::TemperatureOversampling::Skip => TemperatureOversampling::Skip,
-                lowlevel::TemperatureOversampling::X1 => TemperatureOversampling::X1,
-                lowlevel::TemperatureOversampling::X2 => TemperatureOversampling::X2,
-                lowlevel::TemperatureOversampling::X4 => TemperatureOversampling::X4,
-                lowlevel::TemperatureOversampling::X8 => TemperatureOversampling::X8,
-                lowlevel::TemperatureOversampling::X16 => TemperatureOversampling::X16,
-            });
+            .map_or(TemperatureOversampling::X16, |to| to.into());
 
         let pressure_oversampling = measurement_control
             .pressure_oversampling()
             // other bit patterns map to ×16
-            .map_or(PressureOversampling::X16, |po| match po {
-                lowlevel::PressureOversampling::Skip => PressureOversampling::Skip,
-                lowlevel::PressureOversampling::X1 => PressureOversampling::X1,
-                lowlevel::PressureOversampling::X2 => PressureOversampling::X2,
-                lowlevel::PressureOversampling::X4 => PressureOversampling::X4,
-                lowlevel::PressureOversampling::X8 => PressureOversampling::X8,
-                lowlevel::PressureOversampling::X16 => PressureOversampling::X16,
-            });
+            .map_or(PressureOversampling::X16, |po| po.into());
 
         let mode = measurement_control
             .mode()
             // two bit patterns map to Forced
-            .map_or(Mode::Forced, |m| match m {
-                lowlevel::Mode::Sleep => Mode::Sleep,
-                lowlevel::Mode::Forced => Mode::Forced,
-                lowlevel::Mode::Normal => Mode::Normal,
-            });
+            .map_or(Mode::Forced, |m| m.into());
 
         Self {
             humidity_oversampling,
@@ -159,7 +232,22 @@ impl From<(lowlevel::HumidityControl, lowlevel::MeasurementControl)> for Control
     }
 }
 
-#[derive(Default)]
+impl From<Control> for (lowlevel::HumidityControl, lowlevel::MeasurementControl) {
+    fn from(control: Control) -> Self {
+        let humidity_control = lowlevel::HumidityControl::builder()
+            .with_humidity_oversampling(control.humidity_oversampling.into())
+            .build();
+        let measurement_control = lowlevel::MeasurementControl::builder()
+            .with_temperature_oversampling(control.temperature_oversampling.into())
+            .with_pressure_oversampling(control.pressure_oversampling.into())
+            .with_mode(control.mode.into())
+            .build();
+
+        (humidity_control, measurement_control)
+    }
+}
+
+#[derive(Default, Copy, Clone)]
 #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub enum StandbyTime {
     #[default]
@@ -173,7 +261,37 @@ pub enum StandbyTime {
     Millis20,
 }
 
-#[derive(Default)]
+impl From<lowlevel::StandbyTime> for StandbyTime {
+    fn from(standby_time: lowlevel::StandbyTime) -> Self {
+        match standby_time {
+            lowlevel::StandbyTime::Ms0_5 => Self::Millis0_5,
+            lowlevel::StandbyTime::Ms62_5 => Self::Millis62_5,
+            lowlevel::StandbyTime::Ms125 => Self::Millis125,
+            lowlevel::StandbyTime::Ms250 => Self::Millis250,
+            lowlevel::StandbyTime::Ms500 => Self::Millis500,
+            lowlevel::StandbyTime::Ms1000 => Self::Millis1000,
+            lowlevel::StandbyTime::Ms10 => Self::Millis10,
+            lowlevel::StandbyTime::Ms20 => Self::Millis20,
+        }
+    }
+}
+
+impl From<StandbyTime> for lowlevel::StandbyTime {
+    fn from(standby_time: StandbyTime) -> Self {
+        match standby_time {
+            StandbyTime::Millis0_5 => Self::Ms0_5,
+            StandbyTime::Millis62_5 => Self::Ms62_5,
+            StandbyTime::Millis125 => Self::Ms125,
+            StandbyTime::Millis250 => Self::Ms250,
+            StandbyTime::Millis500 => Self::Ms500,
+            StandbyTime::Millis1000 => Self::Ms1000,
+            StandbyTime::Millis10 => Self::Ms10,
+            StandbyTime::Millis20 => Self::Ms20,
+        }
+    }
+}
+
+#[derive(Default, Copy, Clone)]
 #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub enum Filter {
     #[default]
@@ -184,7 +302,31 @@ pub enum Filter {
     X16,
 }
 
-#[derive(Default)]
+impl From<lowlevel::Filter> for Filter {
+    fn from(filter: lowlevel::Filter) -> Self {
+        match filter {
+            lowlevel::Filter::Off => Self::Off,
+            lowlevel::Filter::X2 => Self::X2,
+            lowlevel::Filter::X4 => Self::X4,
+            lowlevel::Filter::X8 => Self::X8,
+            lowlevel::Filter::X16 => Self::X16,
+        }
+    }
+}
+
+impl From<Filter> for lowlevel::Filter {
+    fn from(filter: Filter) -> Self {
+        match filter {
+            Filter::Off => Self::Off,
+            Filter::X2 => Self::X2,
+            Filter::X4 => Self::X4,
+            Filter::X8 => Self::X8,
+            Filter::X16 => Self::X16,
+        }
+    }
+}
+
+#[derive(Default, Copy, Clone)]
 #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub struct Config {
     pub standby_time: StandbyTime,
@@ -193,27 +335,12 @@ pub struct Config {
 
 impl From<lowlevel::Config> for Config {
     fn from(config: lowlevel::Config) -> Self {
-        let standby_time = match config.standby_time() {
-            lowlevel::StandbyTime::Ms0_5 => StandbyTime::Millis0_5,
-            lowlevel::StandbyTime::Ms62_5 => StandbyTime::Millis62_5,
-            lowlevel::StandbyTime::Ms125 => StandbyTime::Millis125,
-            lowlevel::StandbyTime::Ms250 => StandbyTime::Millis250,
-            lowlevel::StandbyTime::Ms500 => StandbyTime::Millis500,
-            lowlevel::StandbyTime::Ms1000 => StandbyTime::Millis1000,
-            lowlevel::StandbyTime::Ms10 => StandbyTime::Millis10,
-            lowlevel::StandbyTime::Ms20 => StandbyTime::Millis20,
-        };
+        let standby_time = config.standby_time().into();
 
         let filter = config
             .filter()
             // other bit patterns map to 16
-            .map_or(Filter::X16, |f| match f {
-                lowlevel::Filter::Off => Filter::Off,
-                lowlevel::Filter::X2 => Filter::X2,
-                lowlevel::Filter::X4 => Filter::X4,
-                lowlevel::Filter::X8 => Filter::X8,
-                lowlevel::Filter::X16 => Filter::X16,
-            });
+            .map_or(Filter::X16, |f| f.into());
 
         Self {
             standby_time,
@@ -222,18 +349,31 @@ impl From<lowlevel::Config> for Config {
     }
 }
 
+impl From<Config> for lowlevel::Config {
+    fn from(config: Config) -> Self {
+        lowlevel::Config::builder()
+            .with_standby_time(config.standby_time.into())
+            .with_filter(config.filter.into())
+            .with_spi_3wire_enabled(false)
+            .build()
+    }
+}
+
+#[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub enum MeasurementStatus {
     Standby,
     Measuring,
 }
 
+#[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub enum UpdateStatus {
     Standby,
     Copying,
 }
 
+#[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub struct Status {
     pub measurement: MeasurementStatus,
@@ -288,11 +428,28 @@ where
         Ok(control)
     }
 
+    pub async fn set_control(&mut self, control: Control) -> Result<(), E> {
+        let (ctrl_hum, ctrl_meas) = control.into();
+
+        self.write_ctrl_hum(ctrl_hum).await?;
+        self.write_ctrl_meas(ctrl_meas).await?;
+
+        Ok(())
+    }
+
     pub async fn config(&mut self) -> Result<Config, E> {
         let config = self.read_config().await?;
 
         let config = config.into();
         Ok(config)
+    }
+
+    pub async fn set_config(&mut self, config: Config) -> Result<(), E> {
+        let config = config.into();
+
+        self.write_config(config).await?;
+
+        Ok(())
     }
 
     pub async fn status(&mut self) -> Result<Status, E> {

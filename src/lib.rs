@@ -44,6 +44,184 @@ where
     }
 }
 
+#[derive(Default)]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
+pub enum HumidityOversampling {
+    #[default]
+    Skip,
+    X1,
+    X2,
+    X4,
+    X8,
+    X16,
+}
+
+#[derive(Default)]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
+pub enum TemperatureOversampling {
+    #[default]
+    Skip,
+    X1,
+    X2,
+    X4,
+    X8,
+    X16,
+}
+
+#[derive(Default)]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
+pub enum PressureOversampling {
+    #[default]
+    Skip,
+    X1,
+    X2,
+    X4,
+    X8,
+    X16,
+}
+
+#[derive(Default)]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
+pub enum Mode {
+    #[default]
+    Sleep,
+    Forced,
+    Normal,
+}
+
+#[derive(Default)]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
+pub struct Control {
+    pub humidity_oversampling: HumidityOversampling,
+    pub temperature_oversampling: TemperatureOversampling,
+    pub pressure_oversampling: PressureOversampling,
+    pub mode: Mode,
+}
+
+impl From<(lowlevel::HumidityControl, lowlevel::MeasurementControl)> for Control {
+    fn from(
+        (humidity_control, measurement_control): (
+            lowlevel::HumidityControl,
+            lowlevel::MeasurementControl,
+        ),
+    ) -> Self {
+        let humidity_oversampling = humidity_control
+            .humidity_oversampling()
+            // other bit patterns map to ×16
+            .map_or(HumidityOversampling::X16, |ho| match ho {
+                lowlevel::HumidityOversampling::Skip => HumidityOversampling::Skip,
+                lowlevel::HumidityOversampling::X1 => HumidityOversampling::X1,
+                lowlevel::HumidityOversampling::X2 => HumidityOversampling::X2,
+                lowlevel::HumidityOversampling::X4 => HumidityOversampling::X4,
+                lowlevel::HumidityOversampling::X8 => HumidityOversampling::X8,
+                lowlevel::HumidityOversampling::X16 => HumidityOversampling::X16,
+            });
+
+        let temperature_oversampling = measurement_control
+            .temperature_oversampling()
+            // other bit patterns map to ×16
+            .map_or(TemperatureOversampling::X16, |to| match to {
+                lowlevel::TemperatureOversampling::Skip => TemperatureOversampling::Skip,
+                lowlevel::TemperatureOversampling::X1 => TemperatureOversampling::X1,
+                lowlevel::TemperatureOversampling::X2 => TemperatureOversampling::X2,
+                lowlevel::TemperatureOversampling::X4 => TemperatureOversampling::X4,
+                lowlevel::TemperatureOversampling::X8 => TemperatureOversampling::X8,
+                lowlevel::TemperatureOversampling::X16 => TemperatureOversampling::X16,
+            });
+
+        let pressure_oversampling = measurement_control
+            .pressure_oversampling()
+            // other bit patterns map to ×16
+            .map_or(PressureOversampling::X16, |po| match po {
+                lowlevel::PressureOversampling::Skip => PressureOversampling::Skip,
+                lowlevel::PressureOversampling::X1 => PressureOversampling::X1,
+                lowlevel::PressureOversampling::X2 => PressureOversampling::X2,
+                lowlevel::PressureOversampling::X4 => PressureOversampling::X4,
+                lowlevel::PressureOversampling::X8 => PressureOversampling::X8,
+                lowlevel::PressureOversampling::X16 => PressureOversampling::X16,
+            });
+
+        let mode = measurement_control
+            .mode()
+            // two bit patterns map to Forced
+            .map_or(Mode::Forced, |m| match m {
+                lowlevel::Mode::Sleep => Mode::Sleep,
+                lowlevel::Mode::Forced => Mode::Forced,
+                lowlevel::Mode::Normal => Mode::Normal,
+            });
+
+        Self {
+            humidity_oversampling,
+            temperature_oversampling,
+            pressure_oversampling,
+            mode,
+        }
+    }
+}
+
+#[derive(Default)]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
+pub enum StandbyTime {
+    #[default]
+    Millis0_5,
+    Millis62_5,
+    Millis125,
+    Millis250,
+    Millis500,
+    Millis1000,
+    Millis10,
+    Millis20,
+}
+
+#[derive(Default)]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
+pub enum Filter {
+    #[default]
+    Off,
+    X2,
+    X4,
+    X8,
+    X16,
+}
+
+#[derive(Default)]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
+pub struct Config {
+    pub standby_time: StandbyTime,
+    pub filter: Filter,
+}
+
+impl From<lowlevel::Config> for Config {
+    fn from(config: lowlevel::Config) -> Self {
+        let standby_time = match config.standby_time() {
+            lowlevel::StandbyTime::Ms0_5 => StandbyTime::Millis0_5,
+            lowlevel::StandbyTime::Ms62_5 => StandbyTime::Millis62_5,
+            lowlevel::StandbyTime::Ms125 => StandbyTime::Millis125,
+            lowlevel::StandbyTime::Ms250 => StandbyTime::Millis250,
+            lowlevel::StandbyTime::Ms500 => StandbyTime::Millis500,
+            lowlevel::StandbyTime::Ms1000 => StandbyTime::Millis1000,
+            lowlevel::StandbyTime::Ms10 => StandbyTime::Millis10,
+            lowlevel::StandbyTime::Ms20 => StandbyTime::Millis20,
+        };
+
+        let filter = config
+            .filter()
+            // other bit patterns map to 16
+            .map_or(Filter::X16, |f| match f {
+                lowlevel::Filter::Off => Filter::Off,
+                lowlevel::Filter::X2 => Filter::X2,
+                lowlevel::Filter::X4 => Filter::X4,
+                lowlevel::Filter::X8 => Filter::X8,
+                lowlevel::Filter::X16 => Filter::X16,
+            });
+
+        Self {
+            standby_time,
+            filter,
+        }
+    }
+}
+
 impl<I2C, E> Bme280<I2C>
 where
     I2C: I2c<Error = E>,
@@ -55,12 +233,27 @@ where
     ) -> Result<Self, ChipIdError<E>> {
         let mut this = Self { i2c, address };
 
-        let chip_id = this.chip_id().await?;
+        let chip_id = this.read_chip_id().await?;
         if CHIP_ID == chip_id {
             Ok(this)
         } else {
             Err(ChipIdError::WrongChipId(chip_id))
         }
+    }
+
+    pub async fn control(&mut self) -> Result<Control, E> {
+        let ctrl_hum = self.read_ctrl_hum().await?;
+        let ctrl_meas = self.read_ctrl_meas().await?;
+
+        let control = (ctrl_hum, ctrl_meas).into();
+        Ok(control)
+    }
+
+    pub async fn config(&mut self) -> Result<Config, E> {
+        let config = self.read_config().await?;
+
+        let config = config.into();
+        Ok(config)
     }
 
     pub fn release(self) -> I2C {

@@ -9,7 +9,7 @@ const REGISTER_CTRL_MEAS_ADDRESS: SevenBitAddress = 0xF4;
 const REGISTER_CONFIG_ADDRESS: SevenBitAddress = 0xF5;
 
 #[bitenum(u3, exhaustive = false)]
-enum HumidityOversampling {
+pub(crate) enum HumidityOversampling {
     Skip = 0b000,
     X1 = 0b001,
     X2 = 0b010,
@@ -19,7 +19,7 @@ enum HumidityOversampling {
 }
 
 #[bitfield(u8, default = 0x00)]
-pub struct HumidityControl {
+pub(crate) struct HumidityControl {
     #[bits(0..=2, rw)]
     humidity_oversampling: Option<HumidityOversampling>,
 }
@@ -33,7 +33,7 @@ impl defmt::Format for HumidityControl {
 }
 
 #[bitenum(u3, exhaustive = false)]
-enum TemperatureOversampling {
+pub(crate) enum TemperatureOversampling {
     Skip = 0b000,
     X1 = 0b001,
     X2 = 0b010,
@@ -43,7 +43,7 @@ enum TemperatureOversampling {
 }
 
 #[bitenum(u3, exhaustive = false)]
-enum PressureOversampling {
+pub(crate) enum PressureOversampling {
     Skip = 0b000,
     X1 = 0b001,
     X2 = 0b010,
@@ -53,14 +53,14 @@ enum PressureOversampling {
 }
 
 #[bitenum(u2, exhaustive = false)]
-enum Mode {
+pub(crate) enum Mode {
     Sleep = 0b00,
     Forced = 0b01,
     Normal = 0b11,
 }
 
 #[bitfield(u8, default = 0x00)]
-pub struct MeasurementControl {
+pub(crate) struct MeasurementControl {
     #[bits(5..=7, rw)]
     temperature_oversampling: Option<TemperatureOversampling>,
 
@@ -84,7 +84,7 @@ impl defmt::Format for MeasurementControl {
 }
 
 #[bitenum(u3, exhaustive = true)]
-enum StandbyTime {
+pub(crate) enum StandbyTime {
     Ms0_5 = 0b000,
     Ms62_5 = 0b001,
     Ms125 = 0b010,
@@ -96,7 +96,7 @@ enum StandbyTime {
 }
 
 #[bitenum(u3, exhaustive = false)]
-enum Filter {
+pub(crate) enum Filter {
     Off = 0b000,
     X2 = 0b001,
     X4 = 0b010,
@@ -105,7 +105,7 @@ enum Filter {
 }
 
 #[bitfield(u8, default = 0x00)]
-pub struct Config {
+pub(crate) struct Config {
     #[bits(5..=7, rw)]
     standby_time: StandbyTime,
 
@@ -133,7 +133,7 @@ where
     I2C: I2c<Error = E>,
     E: embedded_hal_async::i2c::Error,
 {
-    pub(crate) async fn chip_id(&mut self) -> Result<ChipId, E> {
+    pub(crate) async fn read_chip_id(&mut self) -> Result<ChipId, E> {
         let mut data: [u8; 1] = [0];
         self.i2c
             .write_read(self.address, &[REGISTER_ID_ADDRESS], &mut data)
@@ -141,7 +141,7 @@ where
         Ok(data[0])
     }
 
-    pub async fn ctrl_hum(&mut self) -> Result<HumidityControl, E> {
+    pub(crate) async fn read_ctrl_hum(&mut self) -> Result<HumidityControl, E> {
         let mut data: [u8; 1] = [0];
         self.i2c
             .write_read(self.address, &[REGISTER_CTRL_HUM_ADDRESS], &mut data)
@@ -150,7 +150,7 @@ where
         Ok(ctrl_hum)
     }
 
-    pub async fn ctrl_meas(&mut self) -> Result<MeasurementControl, E> {
+    pub(crate) async fn read_ctrl_meas(&mut self) -> Result<MeasurementControl, E> {
         let mut data: [u8; 1] = [0];
         self.i2c
             .write_read(self.address, &[REGISTER_CTRL_MEAS_ADDRESS], &mut data)
@@ -159,7 +159,7 @@ where
         Ok(ctrl_meas)
     }
 
-    pub async fn config(&mut self) -> Result<Config, E> {
+    pub(crate) async fn read_config(&mut self) -> Result<Config, E> {
         let mut data: [u8; 1] = [0];
         self.i2c
             .write_read(self.address, &[REGISTER_CONFIG_ADDRESS], &mut data)

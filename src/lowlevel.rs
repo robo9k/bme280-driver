@@ -27,6 +27,7 @@ pub(crate) const REGISTER_PRESS_SKIPPED: u32 = 0x80000;
 pub(crate) const REGISTER_RESET_MAGIC: SevenBitAddress = 0xB6;
 
 #[bitenum(u3, exhaustive = false)]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub(crate) enum HumidityOversampling {
     Skip = 0b000,
     X1 = 0b001,
@@ -51,6 +52,7 @@ impl defmt::Format for HumidityControl {
 }
 
 #[bitenum(u3, exhaustive = false)]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub(crate) enum TemperatureOversampling {
     Skip = 0b000,
     X1 = 0b001,
@@ -61,6 +63,7 @@ pub(crate) enum TemperatureOversampling {
 }
 
 #[bitenum(u3, exhaustive = false)]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub(crate) enum PressureOversampling {
     Skip = 0b000,
     X1 = 0b001,
@@ -71,6 +74,7 @@ pub(crate) enum PressureOversampling {
 }
 
 #[bitenum(u2, exhaustive = false)]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub(crate) enum Mode {
     Sleep = 0b00,
     Forced = 0b01,
@@ -102,6 +106,7 @@ impl defmt::Format for MeasurementControl {
 }
 
 #[bitenum(u3, exhaustive = true)]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub(crate) enum StandbyTime {
     Ms0_5 = 0b000,
     Ms62_5 = 0b001,
@@ -114,6 +119,7 @@ pub(crate) enum StandbyTime {
 }
 
 #[bitenum(u3, exhaustive = false)]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 pub(crate) enum Filter {
     Off = 0b000,
     X2 = 0b001,
@@ -153,6 +159,18 @@ pub(crate) struct Status {
 
     #[bit(0, rw)]
     im_update: bool,
+}
+
+#[cfg(feature = "defmt-03")]
+#[cfg_attr(docsrs, doc(cfg(feature = "defmt-03")))]
+impl defmt::Format for Status {
+    fn format(&self, f: defmt::Formatter) {
+        defmt::write!(
+            f,
+            "status {{ measuring {0=3..4} im_update {0=0..1} }}",
+            self.raw_value,
+        )
+    }
 }
 
 pub(crate) struct AdcPressure(pub(crate) u32);
@@ -203,6 +221,10 @@ where
         self.i2c
             .write_read(self.address, &[REGISTER_ID_ADDRESS], &mut data)
             .await?;
+
+        #[cfg(feature = "defmt-03")]
+        defmt::trace!("read register `chip_id`: {=u8:#X}", data[0]);
+
         Ok(data[0])
     }
 
@@ -218,9 +240,14 @@ where
 
     pub(crate) async fn read_ctrl_hum(&mut self) -> Result<HumidityControl, E> {
         let mut data: [u8; 1] = [0];
+
         self.i2c
             .write_read(self.address, &[REGISTER_CTRL_HUM_ADDRESS], &mut data)
             .await?;
+
+        #[cfg(feature = "defmt-03")]
+        defmt::trace!("read register `ctrl_hum`: {=u8:#X}", data[0]);
+
         let ctrl_hum = HumidityControl::new_with_raw_value(data[0]);
         Ok(ctrl_hum)
     }
@@ -237,9 +264,14 @@ where
 
     pub(crate) async fn read_ctrl_meas(&mut self) -> Result<MeasurementControl, E> {
         let mut data: [u8; 1] = [0];
+
         self.i2c
             .write_read(self.address, &[REGISTER_CTRL_MEAS_ADDRESS], &mut data)
             .await?;
+
+        #[cfg(feature = "defmt-03")]
+        defmt::trace!("read register `ctrl_meas`: {=u8:#X}", data[0]);
+
         let ctrl_meas = MeasurementControl::new_with_raw_value(data[0]);
         Ok(ctrl_meas)
     }
@@ -256,9 +288,14 @@ where
 
     pub(crate) async fn read_config(&mut self) -> Result<Config, E> {
         let mut data: [u8; 1] = [0];
+
         self.i2c
             .write_read(self.address, &[REGISTER_CONFIG_ADDRESS], &mut data)
             .await?;
+
+        #[cfg(feature = "defmt-03")]
+        defmt::trace!("read register `config`: {=u8:#X}", data[0]);
+
         let config = Config::new_with_raw_value(data[0]);
         Ok(config)
     }
@@ -272,9 +309,14 @@ where
 
     pub(crate) async fn read_status(&mut self) -> Result<Status, E> {
         let mut data: [u8; 1] = [0];
+
         self.i2c
             .write_read(self.address, &[REGISTER_STATUS_ADDRESS], &mut data)
             .await?;
+
+        #[cfg(feature = "defmt-03")]
+        defmt::trace!("read register `status`: {=u8:#X}", data[0]);
+
         let status = Status::new_with_raw_value(data[0]);
         Ok(status)
     }
@@ -297,6 +339,18 @@ where
             )
             .await?;
 
+        #[cfg(feature = "defmt-03")]
+        {
+            defmt::trace!(
+                "read registers `calib00..calib25`: {=[u8]}",
+                data[0..REGISTER_CALIB00_CALIB25_LENGTH]
+            );
+            defmt::trace!(
+                "read registers `calib26..calib41`: {=[u8]}",
+                data[REGISTER_CALIB00_CALIB25_LENGTH..REGISTER_CALIB_LENGTH]
+            );
+        }
+
         Ok(data)
     }
 
@@ -306,6 +360,9 @@ where
         self.i2c
             .write_read(self.address, &[REGISTER_RAW_MEASUREMENT_ADDRESS], &mut data)
             .await?;
+
+        #[cfg(feature = "defmt-03")]
+        defmt::trace!("read registers `press..temp..hum`: {=[u8]}", data);
 
         let adc_p: u32 =
             (u32::from(data[0]) << 12) | (u32::from(data[1]) << 4) | (u32::from(data[2]) >> 4);
@@ -338,8 +395,10 @@ where
                 Some(AdcHumidity(adc_h))
             },
         };
+
         #[cfg(feature = "defmt-03")]
-        defmt::debug!("raw_measurement {}", raw_measurement);
+        defmt::trace!("uncompensated PTH: {}", raw_measurement);
+
         Ok(raw_measurement)
     }
 }

@@ -112,6 +112,7 @@ impl From<[u8; lowlevel::REGISTER_CALIB_LENGTH]> for Calibration {
 }
 
 #[derive(Copy, Clone)]
+#[cfg_attr(feature = "defmt-03", derive(defmt::Format))]
 struct FineTemperature(i32);
 
 impl Calibration {
@@ -649,6 +650,10 @@ where
                 calibration: calibration.into(),
             },
         };
+
+        #[cfg(feature = "defmt-03")]
+        defmt::debug!("calibration: {}", this.state.calibration);
+
         Ok(this)
     }
 }
@@ -693,6 +698,9 @@ where
                 humidity: None,
             }
         };
+
+        #[cfg(feature = "defmt-03")]
+        defmt::debug!("compensated measurement: {}", measurement);
 
         Ok(measurement)
     }
